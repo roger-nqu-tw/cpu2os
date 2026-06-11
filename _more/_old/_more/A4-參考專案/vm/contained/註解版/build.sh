@@ -1,1 +1,0 @@
-gcc -Wall -Werror -lcap -lseccomp contained.c -o contained

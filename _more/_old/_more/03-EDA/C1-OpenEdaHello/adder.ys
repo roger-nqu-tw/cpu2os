@@ -1,4 +1,0 @@
-# adder.ys
-read_verilog adder.v
-synth -top adder
-write_verilog adder_synth.v

@@ -1,1 +1,0 @@
-char *f() { char *a="hello"; return a; }

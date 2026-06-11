@@ -1,1 +1,0 @@
-./jack2vm $1.jack $1.vm
