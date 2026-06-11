@@ -1,1 +1,0 @@
-https://aistudio.google.com/prompts/16B0whIJNTZ3W0Tvjpq5It43w65pjInIi

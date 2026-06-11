@@ -1,5 +1,0 @@
-
-
-```
-$ strace execFile
-```

@@ -1,5 +1,0 @@
-int x,y;
-
-x = 3;
-y = x*3;
-printf("x=%d y=%d", x, y);

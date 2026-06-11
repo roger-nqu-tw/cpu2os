@@ -1,1 +1,0 @@
-https://gemini.google.com/app/1cc84e90da73335b

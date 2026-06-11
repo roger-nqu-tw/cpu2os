@@ -1,2 +1,0 @@
-Hello! This is a text file stored in the Kernel.
-Rust OS is fun!

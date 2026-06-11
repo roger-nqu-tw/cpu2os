@@ -1,1 +1,0 @@
-# Python source code to parse Microsoft PE (Portable Executable) file format

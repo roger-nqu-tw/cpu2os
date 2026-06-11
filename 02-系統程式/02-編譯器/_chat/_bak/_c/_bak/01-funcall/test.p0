@@ -1,5 +1,0 @@
-function add(x, y) {
-    // 函數體
-}
-
-add(a, b)

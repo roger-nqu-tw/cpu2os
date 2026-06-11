@@ -1,1 +1,0 @@
-gcc hack2x86.c -o hack2x86
