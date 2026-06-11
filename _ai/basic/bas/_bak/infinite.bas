@@ -1,2 +1,0 @@
-10 PRINT "BASIC 萬歲！"
-20 GOTO 10

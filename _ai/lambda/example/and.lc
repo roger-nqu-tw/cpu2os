@@ -1,5 +1,0 @@
-TRUE  = \t.\f. t ;
-FALSE = \t.\f. f ;
-AND   = \p.\q. p q p ;
-
-AND TRUE FALSE
