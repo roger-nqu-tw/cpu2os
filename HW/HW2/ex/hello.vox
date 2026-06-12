@@ -1,0 +1,39 @@
+// Hello World 示例
+print("Hello, VoxLang!");
+
+// 基本变量
+var x: int = 10;
+var pi: float = 3.14159;
+var flag: bool = true;
+
+print(x);
+print(pi);
+print(flag);
+
+// 算术运算
+var sum: int = 5 + 3;
+var product: int = 4 * 6;
+print(sum);
+print(product);
+
+// 条件语句
+if (x > 5) {
+    print("x is greater than 5");
+} else {
+    print("x is less than or equal to 5");
+}
+
+// 循环
+var i: int = 0;
+while (i < 5) {
+    print(i);
+    i = i + 1;
+}
+
+// 函数
+func add(a: int, b: int) -> int {
+    return a + b;
+}
+
+var result: int = add(10, 20);
+print(result);
