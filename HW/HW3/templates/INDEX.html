@@ -1,1 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天氣預測系統</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft JhengHei', sans-serif; background: linear-gradient(135deg, #1a1a2e, #16213e); min-height: 100vh; padding: 20px; color: #fff; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 30px; color: #00d4ff; }
+        .card { background: rgba(255,255,255,0.1); border-radius: 15px; padding: 25px; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: rgba(0,0,0,0.3); color: #fff; font-size: 16px; }
+        button { padding: 12px 25px; border-radius: 8px; border: none; background: #00d4ff; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #00a8cc; }
+        .weather-display { text-align: center; }
+        .temp { font-size: 72px; font-weight: bold; color: #00d4ff; }
+        .description { font-size: 24px; margin: 10px 0; }
+        .prediction { background: rgba(255,193,7,0.2); padding: 15px; border-radius: 10px; margin-top: 15px; }
+        .prediction h3 { color: #ffc107; margin-bottom: 10px; }
+        .prediction-value { font-size: 36px; color: #ffc107; }
+        .feedback-form { margin-top: 20px; padding-top: 20px; border-top: 1px solid #333; }
+        .feedback-form input { width: 100px; }
+        .feedback-form button { width: 100%; margin-top: 10px; }
+        .history { margin-top: 20px; }
+        .history h3 { margin-bottom: 15px; color: #00d4ff; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px; background: rgba(255,255,255,0.05); margin-bottom: 5px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>天氣預測系統</h1>
+        <div class="card">
+            <div class="input-group">
+                <input type="text" id="cityInput" placeholder="輸入城市名稱" value="Taipei">
+                <button onclick="getWeather()">查詢天氣</button>
+            </div>
+            <div class="weather-display" id="weatherDisplay">
+                <p>請輸入城市查詢天氣</p>
+            </div>
+            <div class="prediction" id="predictionSection" style="display:none;">
+                <h3>明日預測溫度</h3>
+                <div class="prediction-value" id="predictionValue">--°C</div>
+                <div class="feedback-form">
+                    <label>回饋今日實際溫度：</label>
+                    <input type="number" id="actualTemp" step="0.1" placeholder="實際溫度">
+                    <button onclick="submitFeedback()">提交回饋</button>
+                </div>
+            </div>
+        </div>
+        <div class="card history">
+            <h3>歷史天氣</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+    <script>
+        let currentPrediction = null;
+        let currentCity = null;
 
+        async function getWeather() {
+            const city = document.getElementById('cityInput').value;
+            if (!city) return;
+            currentCity = city;
+            
+            try {
+                const resp = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
+                const data = await resp.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                const display = document.getElementById('weatherDisplay');
+                display.innerHTML = `
+                    <div class="temp">${data.temp.toFixed(1)}°C</div>
+                    <div class="description">${data.description}</div>
+                    <p>濕度: ${data.humidity}%</p>
+                `;
+                
+                currentPrediction = data.prediction;
+                document.getElementById('predictionValue').textContent = `${data.prediction}°C`;
+                document.getElementById('predictionSection').style.display = 'block';
+                
+                loadHistory(city);
+            } catch (e) {
+                alert('無法取得天氣資料');
+            }
+        }
+        
+        async function loadHistory(city) {
+            try {
+                const resp = await fetch(`/api/history?city=${encodeURIComponent(city)}`);
+                const data = await resp.json();
+                const list = document.getElementById('historyList');
+                list.innerHTML = data.map(item => `
+                    <div class="history-item">
+                        <span>${item.date}</span>
+                        <span>${item.temp}°C - ${item.description}</span>
+                    </div>
+                `).join('');
+            } catch (e) {}
+        }
+        
+        async function submitFeedback() {
+            const actual = parseFloat(document.getElementById('actualTemp').value);
+            if (!actual || !currentPrediction || !currentCity) {
+                alert('請填寫實際溫度');
+                return;
+            }
+            
+            try {
+                const resp = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        city: currentCity,
+                        predicted_temp: currentPrediction,
+                        actual_temp: actual
+                    })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    alert(`回饋成功！校正值: ${data.correction > 0 ? '+' : ''}${data.correction.toFixed(1)}°C`);
+                }
+            } catch (e) {
+                alert('提交失敗');
+            }
+        }
+    </script>
+</body>
+</html>
