@@ -1,1 +1,28 @@
+(* 陣列範例：透過系統常式初始化陣列 *)
+bind $arr: i32_ptr <- @MakeArray(1, 2, 3, 4, 5);
 
+(* 取得陣列長度並印出 *)
+bind $arr_len: i32 <- @Len($arr);
+@Print($arr_len);
+
+(* 遍歷陣列 *)
+bind $i: i32 <- 0;
+
+(* 因為 cycle 是「至少執行一次」的設計，我們先檢查長度避免對空陣列操作 *)
+check $arr_len != 0 ? [
+    cycle [
+        (* 透過系統常式讀取陣列索引值 *)
+        bind $current_val: i32 <- @GetIndex($arr, $i);
+        @Print($current_val);
+        
+        $i <- $i + 1;
+    ] until $i == $arr_len;
+]
+
+(* 字串宣告 (注意：VoxLang 規範字串使用單引號) *)
+bind $msg: str <- 'VoxLang';
+@Print($msg);
+
+(* 字串拼接 *)
+bind $full: str <- 'Hello, ' + $msg + '!';
+@Print($full);
