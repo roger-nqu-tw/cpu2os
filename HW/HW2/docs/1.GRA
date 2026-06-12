@@ -1,1 +1,92 @@
+1. 詞法規則 (Lexical Rules)
+在這裡，我們強制變數以 $ 開頭，函式/系統呼叫以 @ 開頭，字串改用單引號，布林值則對應高低電位訊號。
 
+EBNF
+(* 基礎字元定義 *)
+lowerCase = "a" | "b" | ... | "z" ;
+upperCase = "A" | "B" | ... | "Z" ;
+digit_dec = "0" | "1" | ... | "9" ;
+digit_hex = digit_dec | "A" | ... | "F" | "a" | ... | "f" ;
+digit_bin = "0" | "1" ;
+
+(* 標識符：嚴格區分變數與常式 *)
+varIdent  = "$" lowerCase { lowerCase | digit_dec | "_" } ;
+sysIdent  = "@" upperCase { upperCase | lowerCase | digit_dec } ;
+
+(* 數值字面量：支援十進位、十六進位與二進位 *)
+intDec    = ["-"] ( "1" | ... | "9" ) { digit_dec } | "0" ;
+intHex    = "0x" digit_hex { digit_hex } ;
+intBin    = "0b" digit_bin { digit_bin } ;
+
+(* 浮點數：強制要求後綴 f (float32) 或 d (float64) *)
+floatVal  = ["-"] digit_dec { digit_dec } "." digit_dec { digit_dec } ( "f" | "d" ) ;
+
+(* 字串與布林值 (訊號狀態) *)
+stringVal = "'" { /* 任何非單引號的字元 */ } "'" ;
+signalVal = "high" | "low" ;
+2. 語法規則 (Syntax Rules)
+在結構上，VoxLang 放棄了傳統的 { } 區塊與 if/else，改用中括號 [ ] 作為作用域，並引入 check ... otherwise 與 cycle ... until 等更具狀態機風格的控制流。
+
+EBNF
+(* 程式與全域結構 *)
+Program     = { Declaration } ;
+Declaration = VarBind | RoutineDecl ;
+
+(* 型別系統 *)
+Type        = "i8" | "i32" | "f64" | "signal" | "str" ;
+
+(* 變數綁定 (取代傳統宣告) *)
+VarBind     = "bind" varIdent ":" Type "<-" Expression ";" ;
+
+(* 常式宣告 (取代傳統函式) *)
+RoutineDecl = "routine" sysIdent "(" [ ParamList ] ")" "->" Type Block ;
+ParamList   = varIdent ":" Type { "," varIdent ":" Type } ;
+
+(* 作用域區塊 *)
+Block       = "[" { Statement } "]" ;
+
+(* 陳述式 *)
+Statement   = VarBind 
+            | Assignment 
+            | CheckStmt 
+            | CycleStmt 
+            | YieldStmt 
+            | CallStmt ";" ;
+
+(* 賦值與控制流 *)
+Assignment  = varIdent "<-" Expression ";" ;
+CheckStmt   = "check" Expression "?" Block [ "otherwise" Block ] ;
+CycleStmt   = "cycle" Block "until" Expression ";" ;
+YieldStmt   = "yield" [ Expression ] ";" ;
+
+(* 常式呼叫 *)
+CallStmt    = sysIdent "(" [ ArgList ] ")" ;
+ArgList     = Expression { "," Expression } ;
+
+(* 運算式與優先權解析 *)
+Expression  = Term { ( "+" | "-" | "||" | "==" | "!=" ) Term } ;
+Term        = Factor { ( "*" | "/" | "&&" | "<<" | ">>" ) Factor } ;
+Factor      = varIdent 
+            | intDec | intHex | intBin 
+            | floatVal 
+            | signalVal 
+            | stringVal 
+            | CallStmt 
+            | "(" Expression ")" 
+            | "~" Factor ;  (* 位元反轉 *)
+3. VoxLang 語法設計亮點解析
+前綴標識符 (Prefix Identifiers):
+
+varIdent 必須以 $ 開頭（例如 $sensor_data）。
+
+sysIdent 必須以 @ 開頭且首字大寫（例如 @CalculatePID）。這在編譯器的語意分析（Semantic Analysis）階段能大幅減少符號表（Symbol Table）的查找複雜度。
+
+硬體訊號語意 (Hardware Signal Semantics):
+
+使用 signal 型別與 high / low 關鍵字取代常規的 boolean 與 true / false，更直觀地對應暫存器狀態或 GPIO 腳位控制。
+
+狀態驅動的控制流 (State-Driven Control Flow):
+
+迴圈機制 cycle [ ... ] until condition; 強制執行至少一次區塊（類似 do-while），非常適合用來輪詢硬體狀態或等待非同步訊號。
+
+賦值符號使用 <-（資料流入）而非 =，強調資料傳輸的方向性。
