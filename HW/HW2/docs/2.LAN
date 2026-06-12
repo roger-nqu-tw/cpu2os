@@ -1,1 +1,58 @@
+1. 核心設計理念 (Core Philosophy)VoxLang 是一種專為底層硬體控制、訊號處理與狀態機驅動所設計的腳本語言。它摒棄了傳統高階語言中模糊的抽象概念，強迫開發者以更貼近硬體暫存器與資料流的方式思考。視覺化區分： 嚴格區分「資料儲存（變數）」與「系統/硬體呼叫」，讓閱讀程式碼如同閱讀電路圖般清晰。訊號語意： 放棄傳統的 true/false，改以高低電位訊號（high/low）為邏輯基礎。資料流向： 賦值不再使用 =，而是使用方向性明確的 <-，強調資料從運算元流入記憶體或暫存器的過程。2. 語法結構與語意 (Syntax & Semantics)2.1 標識符 (Identifiers)VoxLang 在詞法層級強制隔離不同的作用域與行為：變數 (Variables)： 必須以 $ 符號開頭，且全小寫（例：$sensor_val, $counter）。系統/常式呼叫 (System Routines)： 必須以 @ 符號開頭，且採用大駝峰式命名（CamelCase）（例：@ReadRegister, @DelayMs）。2.2 資料型別與綁定 (Types & Binding)變數宣告被稱為「綁定（Binding）」，強調在記憶體中配置空間並寫入初始值。支援的基礎型別：i8, i32：帶號整數。f64：雙精度浮點數（字面量需加上 d 後綴，如 1.5d）。signal：狀態訊號（僅有 high 與 low）。str：字串（使用單引號 ' '）。範例：Plaintextbind $threshold: f64 <- 3.14d;
+bind $is_active: signal <- high;
+bind $mask: i32 <- 0xFF00;  (* 支援十六進位與二進位 0b1010 *)
+2.3 控制流程 (Control Flow)VoxLang 放棄了傳統的 if/else 與 for/while，改用更符合狀態機邏輯的保留字。狀態檢查 (check ... otherwise)Plaintextcheck $sensor_val != 0 ? [
+    $status <- high;
+] otherwise [
+    $status <- low;
+]
+狀態輪詢 (cycle ... until)強制執行至少一次的迴圈，非常適合用來等待硬體中斷或輪詢感測器。Plaintextcycle [
+    bind $data: i8 <- @ReadUART();
+    @Process($data);
+] until $data == 0x00;
+3. 實戰範例：PID 馬達控制器為展現實務上的應用，以下示範如何使用 VoxLang 實作一個運算連續訊號的 PID 控制器。此控制器的核心數學模型為：$$Output = K_p \cdot e(t) + K_i \int e(t) dt + K_d \frac{de}{dt}$$在 VoxLang 中的實作如下：Plaintext(* 定義 PID 運算常式 *)
+routine @ComputePID($error: f64, $dt: f64) -> f64 [
+    bind $kp: f64 <- 1.5d;
+    bind $ki: f64 <- 0.01d;
+    bind $kd: f64 <- 0.05d;
 
+    (* 模擬從靜態記憶體讀取歷史狀態 *)
+    bind $integral: f64 <- @ReadMemory(0x00A1);
+    bind $prev_error: f64 <- @ReadMemory(0x00A2);
+
+    (* 積分與微分計算 *)
+    $integral <- $integral + ($error * $dt);
+    bind $derivative: f64 <- ($error - $prev_error) / $dt;
+
+    (* 更新歷史狀態 *)
+    @WriteMemory(0x00A1, $integral);
+    @WriteMemory(0x00A2, $error);
+
+    (* 輸出計算 *)
+    bind $output: f64 <- ($kp * $error) + ($ki * $integral) + ($kd * $derivative);
+    yield $output;
+]
+
+(* 主控制迴圈 *)
+routine @Main() -> signal [
+    bind $motor_status: signal <- low;
+    bind $target: f64 <- 100.0d;
+
+    cycle [
+        bind $current_pos: f64 <- @ReadEncoder(0x01);
+        bind $error: f64 <- $target - $current_pos;
+
+        check $error != 0.0d ? [
+            bind $adjustment: f64 <- @ComputePID($error, 0.1d);
+            @SetMotorPWM(0x02, $adjustment);
+            $motor_status <- high;
+        ] otherwise [
+            @SetMotorPWM(0x02, 0.0d);
+            $motor_status <- low;
+        ]
+    ] until @SystemHalt();
+
+    yield $motor_status;
+]
+4. 編譯與環境操作VoxLang 編譯器（voxc）可將上述語法轉換為目標硬體的機器碼。在標準的終端機環境中，編譯與燒錄的流程如下：Bash(base) user@DESKTOP-2HKG3QF:~$ voxc --target=avr pid_control.vox
+(base) user@DESKTOP-2HKG3QF:~$ vox-flash /dev/ttyUSB0 pid_control.bin
